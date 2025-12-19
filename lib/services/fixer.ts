@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import crypto from 'crypto'
 
@@ -30,17 +30,21 @@ export async function processFailureEvent(
 ) {
     console.log(`🔧 [FIXER SERVICE] Processing failure for project ${projectId}`)
 
-    // 1. Initialize Supabase with service role
-    const supabase = await createClient() // Note: In edge/server routes we use the server client
+    // 1. Initialize Supabase with service role (bypasses RLS for background jobs)
+    const supabase = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // Find project
-    const { data: project } = await supabase
+    const { data: project, error: projectError } = await supabase
         .from('inngest_fixer_projects')
         .select('*')
         .eq('id', projectId)
         .single()
 
-    if (!project) {
+    if (projectError || !project) {
+        console.error('❌ [FIXER SERVICE] Project query error:', projectError)
         throw new Error(`Project not found: ${projectId}`)
     }
 
