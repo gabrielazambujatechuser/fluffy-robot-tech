@@ -7,7 +7,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     // Simulate Inngest failure webhook
     const mockWebhook = {
-        event: 'function.failed',
+        name: 'inngest/function.failed',
         data: {
             function_id: 'test-failing-function',
             run_id: 'run_' + Math.random().toString(36).substring(7),

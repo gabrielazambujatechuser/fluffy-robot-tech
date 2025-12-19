@@ -8,7 +8,8 @@ const anthropic = new Anthropic({
 })
 
 interface InngestFailureWebhook {
-    event: string
+    name?: string
+    event?: string
     function_id?: string
     run_id?: string
     data?: {
@@ -26,7 +27,7 @@ interface InngestFailureWebhook {
             stack?: string
         }
     }
-    // Backward compatibility for simulation
+    // Backward compatibility for simulation/legacy
     event_data?: {
         function_id?: string
         run_id?: string
@@ -47,108 +48,143 @@ interface InngestFailureWebhook {
 export async function POST(req: Request) {
     try {
         const { searchParams } = new URL(req.url)
-        const projectId = searchParams.get('project_id')
+        let projectId = searchParams.get('project_id')
 
-        console.log(`🔔 [WEBHOOK] Received Inngest failure webhook for project: ${projectId || 'all'}`)
+        console.log(`🔔 [WEBHOOK] Received Inngest failure webhook. ProjectID from query: ${projectId || 'none'}`)
+
+        // Environment checks
+        if (!process.env.ANTHROPIC_API_KEY) {
+            console.error('❌ [WEBHOOK] Missing ANTHROPIC_API_KEY')
+        }
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error('❌ [WEBHOOK] Missing SUPABASE_SERVICE_ROLE_KEY')
+        }
 
         // Clone request for signature verification
         const rawBody = await req.text()
-        const payload: InngestFailureWebhook = JSON.parse(rawBody)
+        const parsed = JSON.parse(rawBody)
 
-        console.log('📦 [WEBHOOK] Payload structure:', JSON.stringify({
-            event: payload.event,
-            has_data: !!payload.data,
-            has_event_data: !!payload.event_data,
-            root_function_id: !!payload.function_id
-        }))
+        // Handle single event or array
+        const events: InngestFailureWebhook[] = Array.isArray(parsed) ? parsed : [parsed]
 
-        const eventType = payload.event
-        // Normalize event data from different potential paths
-        const data = payload.data || payload.event_data
-        const function_id = payload.function_id || data?.function_id
-        const run_id = payload.run_id || data?.run_id
-        const originalEvent = data?.event
-        const error = data?.error
+        console.log(`📦 [WEBHOOK] Processing batch of ${events.length} events`)
 
-        // Verify it's a failure event - handle both function/failed and function.failed
-        if (!eventType || (eventType !== 'function/failed' && eventType !== 'function.failed')) {
-            console.log(`ℹ️ [WEBHOOK] Not a failure event (${eventType}), skipping`)
-            return NextResponse.json({ message: 'Not a failure event' })
-        }
+        for (const payload of events) {
+            const eventType = payload.name || payload.event
 
-        if (!function_id || !run_id || !originalEvent || !error) {
-            console.error('❌ [WEBHOOK] Missing required fields:', {
-                has_function_id: !!function_id,
-                has_run_id: !!run_id,
-                has_event: !!originalEvent,
-                has_error: !!error
-            })
-            return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
-        }
+            console.log('📦 [WEBHOOK] Event structure:', JSON.stringify({
+                type: eventType,
+                has_data: !!payload.data,
+                has_event_data: !!payload.event_data,
+                has_root_error: !!(payload as any).error // Check if error is at root
+            }))
 
-        console.log(`🔍 [ANALYSIS] Analyzing failure for function: ${function_id}`)
-        console.log(`❌ [ERROR] ${error.message}`)
+            // Normalize event data
+            const data = payload.data || payload.event_data
+            const function_id = payload.function_id || data?.function_id
+            const run_id = payload.run_id || data?.run_id
+            const originalEvent = data?.event
+            const error = data?.error
 
-        // Use service role to bypass RLS
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            {
-                auth: { autoRefreshToken: false, persistSession: false },
+            // Verify it's a failure event
+            const isFailureEvent = eventType && (
+                eventType === 'function/failed' ||
+                eventType === 'function.failed' ||
+                eventType === 'inngest/function.failed'
+            )
+
+            if (!isFailureEvent) {
+                console.log(`ℹ️ [WEBHOOK] Skipping non-failure event: ${eventType}`)
+                continue
             }
-        )
 
-        // Find which project this belongs to
-        let query = supabase.from('inngest_fixer_projects').select('*')
-        if (projectId) {
-            query = query.eq('id', projectId)
-        }
+            if (!function_id || !run_id || !originalEvent || !error) {
+                console.error('❌ [WEBHOOK] Missing required fields in payload:', {
+                    has_function_id: !!function_id,
+                    has_run_id: !!run_id,
+                    has_event: !!originalEvent,
+                    has_error: !!error
+                })
+                console.log('📦 [WEBHOOK] Full Payload:', rawBody)
+                return NextResponse.json({
+                    error: 'Invalid payload',
+                    details: 'Payload is missing required Inngest function/run/event data'
+                }, { status: 400 })
+            }
 
-        const { data: project } = await query.limit(1).single()
+            const eventId = originalEvent.id || `gen_${Math.random().toString(36).substring(7)}`
 
-        if (!project) {
-            console.error(`❌ [WEBHOOK] No project found for ID: ${projectId || 'any'}`)
-            return NextResponse.json({ error: 'No project configured' }, { status: 404 })
-        }
+            console.log(`🔍 [ANALYSIS] Analyzing failure for function: ${function_id}`)
+            console.log(`❌ [ERROR] ${error.message}`)
 
-        console.log(`✅ [PROJECT] Found project: ${project.project_name} (${project.id})`)
-
-        // SIGNATURE VERIFICATION
-        const signatureHeader = req.headers.get('x-inngest-signature')
-        if (project.signing_key && signatureHeader) {
-            console.log('🔒 [WEBHOOK] Verifying signature...')
-            try {
-                // Signature format: t=<timestamp>&s=<signature>
-                const parts = signatureHeader.split('&')
-                const timestamp = parts.find(p => p.startsWith('t='))?.split('=')[1]
-                const signature = parts.find(p => p.startsWith('s='))?.split('=')[1]
-
-                if (!timestamp || !signature) throw new Error('Invalid signature header format')
-
-                const hmac = crypto.createHmac('sha256', project.signing_key)
-                hmac.update(timestamp + rawBody)
-                const expectedSignature = hmac.digest('hex')
-
-                if (signature !== expectedSignature) {
-                    console.error('❌ [WEBHOOK] Invalid signature')
-                    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+            // Use service role to bypass RLS
+            const supabase = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                {
+                    auth: { autoRefreshToken: false, persistSession: false },
                 }
-                console.log('✅ [WEBHOOK] Signature verified')
-            } catch (err: any) {
-                console.error('❌ [WEBHOOK] Signature verification failed:', err.message)
-                return NextResponse.json({ error: 'Signature verification failed' }, { status: 401 })
+            )
+
+            // Find which project this belongs to
+            let query = supabase.from('inngest_fixer_projects').select('*')
+            if (projectId) {
+                query = query.eq('id', projectId)
             }
-        }
 
-        // Analyze with Claude
-        console.log('🤖 [CLAUDE] Sending to Claude for analysis...')
+            const { data: project } = await query.limit(1).single()
 
-        const message = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 2000,
-            messages: [{
-                role: 'user',
-                content: `You are debugging an Inngest function failure. 
+            if (!project) {
+                console.error(`❌ [WEBHOOK] No project found for ID: ${projectId || 'any'}`)
+                return NextResponse.json({ error: 'No project configured' }, { status: 404 })
+            }
+
+            console.log(`✅ [PROJECT] Found project: ${project.project_name} (${project.id})`)
+
+            // SIGNATURE VERIFICATION
+            const signatureHeader = req.headers.get('x-inngest-signature')
+            if (project.signing_key && signatureHeader) {
+                console.log('🔒 [WEBHOOK] Verifying signature...')
+                try {
+                    // Signature format can be t=<timestamp>&s=<signature> OR comma separated
+                    const parts = signatureHeader.includes('&')
+                        ? signatureHeader.split('&')
+                        : signatureHeader.split(',')
+
+                    const timestamp = parts.find(p => p.trim().startsWith('t='))?.split('=')[1]
+                    const signature = parts.find(p => p.trim().startsWith('s='))?.split('=')[1]
+
+                    if (!timestamp || !signature) throw new Error('Invalid signature header format')
+
+                    // Try both concat and dot separator just in case
+                    const hmac = crypto.createHmac('sha256', project.signing_key)
+                    hmac.update(timestamp + rawBody)
+                    const expectedSignature = hmac.digest('hex')
+
+                    const hmacWithDot = crypto.createHmac('sha256', project.signing_key)
+                    hmacWithDot.update(timestamp + '.' + rawBody)
+                    const expectedSignatureWithDot = hmacWithDot.digest('hex')
+
+                    if (signature !== expectedSignature && signature !== expectedSignatureWithDot) {
+                        console.error('❌ [WEBHOOK] Invalid signature. Checked with and without dot.')
+                        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+                    }
+                    console.log('✅ [WEBHOOK] Signature verified')
+                } catch (err: any) {
+                    console.error('❌ [WEBHOOK] Signature verification failed:', err.message)
+                    return NextResponse.json({ error: 'Signature verification failed' }, { status: 401 })
+                }
+            }
+
+            // Analyze with Claude
+            console.log('🤖 [CLAUDE] Sending to Claude for analysis...')
+
+            const message = await anthropic.messages.create({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 2000,
+                messages: [{
+                    role: 'user',
+                    content: `You are debugging an Inngest function failure. 
 
 Function ID: ${function_id}
 Event Name: ${originalEvent.name}
@@ -183,63 +219,61 @@ FIXED_PAYLOAD:
 }
 \`\`\`
 `
-            }]
-        })
-
-        const response = message.content[0].type === 'text' ? message.content[0].text : ''
-        console.log('✅ [CLAUDE] Analysis complete')
-
-        // Parse Claude's response
-        const analysisMatch = /ANALYSIS: (.+?)(?=ROOT_CAUSE:)/s.exec(response)
-        const causeMatch = /ROOT_CAUSE: (.+?)(?=CONFIDENCE:)/s.exec(response)
-        const confidenceMatch = /CONFIDENCE: (low|medium|high)/i.exec(response)
-        const fixedPayloadMatch = /FIXED_PAYLOAD:\s*```json\s*(.+?)\s*```/s.exec(response)
-
-        let fixedPayload = null
-        if (fixedPayloadMatch) {
-            try {
-                fixedPayload = JSON.parse(fixedPayloadMatch[1])
-            } catch (e) {
-                console.error('Failed to parse fixed payload:', e)
-            }
-        }
-
-        const analysis = analysisMatch?.[1]?.trim() || 'Analysis failed'
-        const rootCause = causeMatch?.[1]?.trim() || 'Unknown'
-        const confidence = confidenceMatch?.[1]?.toLowerCase() as 'low' | 'medium' | 'high' || 'low'
-
-        // Save to database
-        const { data: failureEvent, error: dbError } = await supabase
-            .from('inngest_fixer_failure_events')
-            .insert({
-                project_id: project.id,
-                user_id: project.user_id,
-                event_id: originalEvent.id,
-                function_id,
-                run_id,
-                error_message: error.message,
-                original_payload: originalEvent,
-                fixed_payload: fixedPayload,
-                ai_analysis: `${analysis}\n\nRoot Cause: ${rootCause}`,
-                fix_confidence: confidence,
-                status: fixedPayload ? 'fixed' : 'failed',
+                }]
             })
-            .select()
-            .single()
 
-        if (dbError) {
-            console.error('❌ [DATABASE] Failed to save:', dbError)
-            return NextResponse.json({ error: 'Database error' }, { status: 500 })
-        }
+            const response = message.content[0].type === 'text' ? message.content[0].text : ''
+            console.log('✅ [CLAUDE] Analysis complete')
 
-        console.log('✅ [WEBHOOK] Failure analyzed and saved:', failureEvent.id)
+            // Parse Claude's response
+            const analysisMatch = /ANALYSIS: (.+?)(?=ROOT_CAUSE:)/s.exec(response)
+            const causeMatch = /ROOT_CAUSE: (.+?)(?=CONFIDENCE:)/s.exec(response)
+            const confidenceMatch = /CONFIDENCE: (low|medium|high)/i.exec(response)
+            const fixedPayloadMatch = /FIXED_PAYLOAD:\s*```json\s*(.+?)\s*```/s.exec(response)
+
+            let fixedPayload = null
+            if (fixedPayloadMatch) {
+                try {
+                    fixedPayload = JSON.parse(fixedPayloadMatch[1])
+                } catch (e) {
+                    console.error('Failed to parse fixed payload:', e)
+                }
+            }
+
+            const analysis = analysisMatch?.[1]?.trim() || 'Analysis failed'
+            const rootCause = causeMatch?.[1]?.trim() || 'Unknown'
+            const confidence = confidenceMatch?.[1]?.toLowerCase() as 'low' | 'medium' | 'high' || 'low'
+
+            // Save to database
+            const { data: failureEvent, error: dbError } = await supabase
+                .from('inngest_fixer_failure_events')
+                .insert({
+                    project_id: project.id,
+                    user_id: project.user_id,
+                    event_id: eventId,
+                    function_id,
+                    run_id,
+                    error_message: error.message,
+                    original_payload: originalEvent,
+                    fixed_payload: fixedPayload,
+                    ai_analysis: `${analysis}\n\nRoot Cause: ${rootCause}`,
+                    fix_confidence: confidence,
+                    status: fixedPayload ? 'fixed' : 'failed',
+                })
+                .select()
+                .single()
+
+            if (dbError) {
+                console.error('❌ [DATABASE] Failed to save:', dbError)
+                return NextResponse.json({ error: 'Database error' }, { status: 500 })
+            }
+
+            console.log('✅ [WEBHOOK] Failure analyzed and saved:', failureEvent.id)
+        } // End of loop over events
 
         return NextResponse.json({
             success: true,
-            failure_id: failureEvent.id,
-            has_fix: !!fixedPayload,
-            confidence,
-            analysis: analysis.substring(0, 100) + '...',
+            message: 'Webhook processed successfully'
         })
 
     } catch (error) {
