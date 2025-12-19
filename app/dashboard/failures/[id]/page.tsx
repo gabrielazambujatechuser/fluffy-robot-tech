@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 
 export default async function FailureDetailPage({ params }: { params: Promise<{ id: string }> }) {

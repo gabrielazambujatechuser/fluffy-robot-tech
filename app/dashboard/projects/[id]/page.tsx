@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {

@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import { UserInfo } from '@/components/user-info'
 import { AuthToast } from '@/components/auth-toast'
 import { TestWebhookButton } from '@/components/test-webhook-button'
