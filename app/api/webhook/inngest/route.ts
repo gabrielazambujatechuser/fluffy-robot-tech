@@ -9,9 +9,27 @@ const anthropic = new Anthropic({
 
 interface InngestFailureWebhook {
     event: string
-    function_id: string
-    run_id: string
-    event_data: {
+    function_id?: string
+    run_id?: string
+    data?: {
+        function_id?: string
+        run_id?: string
+        event?: {
+            id: string
+            name: string
+            data: any
+            ts: number
+        }
+        error?: {
+            message: string
+            name: string
+            stack?: string
+        }
+    }
+    // Backward compatibility for simulation
+    event_data?: {
+        function_id?: string
+        run_id?: string
         event: {
             id: string
             name: string
@@ -37,26 +55,36 @@ export async function POST(req: Request) {
         const rawBody = await req.text()
         const payload: InngestFailureWebhook = JSON.parse(rawBody)
 
-        const {
-            event: eventType,
-            function_id,
-            run_id,
-            event_data,
-        } = payload
+        console.log('📦 [WEBHOOK] Payload structure:', JSON.stringify({
+            event: payload.event,
+            has_data: !!payload.data,
+            has_event_data: !!payload.event_data,
+            root_function_id: !!payload.function_id
+        }))
 
-        // Verify it's a function.failed event
-        if (eventType !== 'function/failed') {
-            console.log('ℹ️ [WEBHOOK] Not a failure event, skipping')
+        const eventType = payload.event
+        // Normalize event data from different potential paths
+        const data = payload.data || payload.event_data
+        const function_id = payload.function_id || data?.function_id
+        const run_id = payload.run_id || data?.run_id
+        const originalEvent = data?.event
+        const error = data?.error
+
+        // Verify it's a failure event - handle both function/failed and function.failed
+        if (!eventType || (eventType !== 'function/failed' && eventType !== 'function.failed')) {
+            console.log(`ℹ️ [WEBHOOK] Not a failure event (${eventType}), skipping`)
             return NextResponse.json({ message: 'Not a failure event' })
         }
 
-        if (!function_id || !run_id) {
-            console.error('❌ [WEBHOOK] Missing required fields')
+        if (!function_id || !run_id || !originalEvent || !error) {
+            console.error('❌ [WEBHOOK] Missing required fields:', {
+                has_function_id: !!function_id,
+                has_run_id: !!run_id,
+                has_event: !!originalEvent,
+                has_error: !!error
+            })
             return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
         }
-
-        const originalEvent = event_data.event
-        const error = event_data.error
 
         console.log(`🔍 [ANALYSIS] Analyzing failure for function: ${function_id}`)
         console.log(`❌ [ERROR] ${error.message}`)
@@ -79,9 +107,11 @@ export async function POST(req: Request) {
         const { data: project } = await query.limit(1).single()
 
         if (!project) {
-            console.error('❌ [WEBHOOK] No project found')
+            console.error(`❌ [WEBHOOK] No project found for ID: ${projectId || 'any'}`)
             return NextResponse.json({ error: 'No project configured' }, { status: 404 })
         }
+
+        console.log(`✅ [PROJECT] Found project: ${project.project_name} (${project.id})`)
 
         // SIGNATURE VERIFICATION
         const signatureHeader = req.headers.get('x-inngest-signature')

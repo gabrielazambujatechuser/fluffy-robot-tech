@@ -7,10 +7,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     // Simulate Inngest failure webhook
     const mockWebhook = {
-        event: 'function/failed',
-        function_id: 'test-failing-function',
-        run_id: 'run_' + Math.random().toString(36).substring(7),
-        event_data: {
+        event: 'function.failed',
+        data: {
+            function_id: 'test-failing-function',
+            run_id: 'run_' + Math.random().toString(36).substring(7),
             event: {
                 id: 'evt_' + Math.random().toString(36).substring(7),
                 name: 'test/user.created',
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
                 message: 'Missing required field: email',
                 stack: 'Error: Missing required field: email\n    at testFailingFunction...',
             },
-        },
+        }
     }
 
     // Forward to actual webhook handler
