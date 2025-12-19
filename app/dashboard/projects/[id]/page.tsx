@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
+import { DeleteProjectButton } from '@/components/delete-project-button'
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
@@ -29,10 +30,11 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     return (
         <div className="min-h-screen bg-slate-900 text-white p-8">
             <div className="max-w-4xl mx-auto">
-                <nav className="mb-8">
+                <nav className="mb-8 flex justify-between items-center">
                     <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 transition-colors">
                         ← Back to Dashboard
                     </Link>
+                    <DeleteProjectButton projectId={project.id} projectName={project.project_name} />
                 </nav>
 
                 <div className="flex justify-between items-start mb-8">
