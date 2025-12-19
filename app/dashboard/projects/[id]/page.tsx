@@ -25,7 +25,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         notFound()
     }
 
-    const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/webhook/inngest?project_id=${project.id}`
+    const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fluffy-robot-tech.vercel.app'}/api/webhook/inngest?project_id=${project.id}`
 
     return (
         <div className="min-h-screen bg-slate-900 text-white p-8">

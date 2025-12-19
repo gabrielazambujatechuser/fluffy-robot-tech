@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 export default function TestPage() {
     const [eventType, setEventType] = useState<'user' | 'payment'>('user')
@@ -28,12 +29,12 @@ export default function TestPage() {
                 .single()
 
             if (!project) {
-                alert('Please add an Inngest project first!')
+                toast.error('Please add an Inngest project first!')
                 return
             }
 
             if (!isLocal && !project.inngest_event_key) {
-                alert('Inngest Event Key is missing for this project. Please add it in project settings.')
+                toast.error('Inngest Event Key is missing for this project. Please add it in project settings.')
                 return
             }
 
@@ -94,13 +95,13 @@ export default function TestPage() {
             setResult(data)
 
             if (response.ok) {
-                alert('Event sent! Check your dashboard for the failure.')
+                toast.success('Event sent! Check your dashboard for the failure.')
             } else {
-                alert('Failed to send event: ' + JSON.stringify(data))
+                toast.error('Failed to send event: ' + (data.error || 'Unknown error'))
             }
         } catch (error) {
             console.error('Error:', error)
-            alert('Error: ' + (error as Error).message)
+            toast.error('Error: ' + (error as Error).message)
         } finally {
             setLoading(false)
         }

@@ -96,7 +96,7 @@ pnpm dev
 
 ### Production flow
 For production, simply configure your Webhook URL in Inngest Cloud to point to your deployed app:
-`https://your-app.com/api/webhook/inngest?project_id=YOUR_PROJECT_ID`
+`https://fluffy-robot-tech.vercel.app/api/webhook/inngest?project_id=YOUR_PROJECT_ID`
 
 ---
 Built with ❤️ by the StarSling team.
