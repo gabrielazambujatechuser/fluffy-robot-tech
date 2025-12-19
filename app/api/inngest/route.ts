@@ -96,35 +96,10 @@ const inngestFixerHandler = inngest.createFunction(
     { id: 'inngest-fixer-handler', name: 'Inngest Fixer Handler' },
     { event: 'inngest/function.failed' },
     async ({ event, step, projectId }: any) => {
-        // Use projectId from middleware context
-        let targetProjectId = projectId
+        // Use projectId from middleware context, or fall back to env var, or hardcoded test project
+        let targetProjectId = projectId || process.env.INNGEST_FIXER_PROJECT_ID || '1918a935-4f5e-412b-9fbc-565ab6a7d29e'
 
-        if (!targetProjectId || targetProjectId === 'all') {
-            // Fallback: If no project ID is in the context (e.g. internal test event),
-            // try to find the most recent project to attribute this to.
-            await step.run('find-default-project', async () => {
-                const { createClient } = await import('@/lib/supabase/server')
-                const supabase = await createClient()
-                const { data: project } = await supabase
-                    .from('inngest_fixer_projects')
-                    .select('id')
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single()
-
-                if (project) {
-                    targetProjectId = project.id
-                }
-            })
-        }
-
-        if (!targetProjectId || targetProjectId === 'all') {
-            console.error('❌ [INNGEST] No project ID found or resolvable. Skipping analysis.')
-            return {
-                message: 'Skipped: No project ID available',
-                status: 'skipped'
-            }
-        }
+        console.log('🔍 [INNGEST] Processing failure with project ID:', targetProjectId)
 
         await step.run('process-failure', async () => {
             return await processFailureEvent(

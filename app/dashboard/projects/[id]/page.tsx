@@ -142,6 +142,16 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                                 </p>
                             </div>
                         </div>
+
+                        <div className="mt-4 p-4 rounded-lg bg-slate-900/50 border border-slate-700">
+                            <h3 className="text-slate-400 font-semibold text-sm mb-2">💡 For Local Testing</h3>
+                            <p className="text-xs text-slate-300 mb-2">
+                                If you want to test failures locally (e.g., from your dashboard test page), set this environment variable:
+                            </p>
+                            <code className="text-xs text-blue-400 bg-slate-800 px-2 py-1 rounded">
+                                INNGEST_FIXER_PROJECT_ID={project.id}
+                            </code>
+                        </div>
                     </div>
                 </div>
             </div>
