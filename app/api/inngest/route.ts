@@ -97,7 +97,34 @@ const inngestFixerHandler = inngest.createFunction(
     { event: 'inngest/function.failed' },
     async ({ event, step, projectId }: any) => {
         // Use projectId from middleware context
-        const targetProjectId = projectId || 'all'
+        let targetProjectId = projectId
+
+        if (!targetProjectId || targetProjectId === 'all') {
+            // Fallback: If no project ID is in the context (e.g. internal test event),
+            // try to find the most recent project to attribute this to.
+            await step.run('find-default-project', async () => {
+                const { createClient } = await import('@/lib/supabase/server')
+                const supabase = await createClient()
+                const { data: project } = await supabase
+                    .from('inngest_fixer_projects')
+                    .select('id')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single()
+
+                if (project) {
+                    targetProjectId = project.id
+                }
+            })
+        }
+
+        if (!targetProjectId || targetProjectId === 'all') {
+            console.error('❌ [INNGEST] No project ID found or resolvable. Skipping analysis.')
+            return {
+                message: 'Skipped: No project ID available',
+                status: 'skipped'
+            }
+        }
 
         await step.run('process-failure', async () => {
             return await processFailureEvent(
