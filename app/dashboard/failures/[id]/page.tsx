@@ -144,7 +144,7 @@ export default async function FailureDetailPage({ params }: { params: Promise<{ 
     )
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: string | null }) {
     const styles = {
         pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
         fixed: 'bg-green-500/20 text-green-400 border-green-500/50',
@@ -152,23 +152,27 @@ function StatusBadge({ status }: { status: string }) {
         failed: 'bg-red-500/20 text-red-400 border-red-500/50',
     }
 
+    const displayStatus = status || 'pending'
+
     return (
-        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[status as keyof typeof styles] || styles.pending}`}>
-            {status.toUpperCase()}
+        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[displayStatus as keyof typeof styles] || styles.pending}`}>
+            {displayStatus.toUpperCase()}
         </span>
     )
 }
 
-function ConfidenceBadge({ level }: { level: string }) {
+function ConfidenceBadge({ level }: { level: string | null }) {
     const styles = {
         low: 'text-red-300',
         medium: 'text-yellow-300',
         high: 'text-green-300',
     }
 
+    const displayLevel = level || 'low'
+
     return (
-        <span className={`text-xs font-bold ${styles[level as keyof typeof styles] || 'text-white'}`}>
-            {level.toUpperCase()}
+        <span className={`text-xs font-bold ${styles[displayLevel as keyof typeof styles] || 'text-white'}`}>
+            {displayLevel.toUpperCase()}
         </span>
     )
 }
