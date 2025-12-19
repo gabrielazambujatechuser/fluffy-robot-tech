@@ -36,7 +36,19 @@ export default function NewProjectPage() {
             if (error) throw error
 
             toast.success('Project created successfully!')
-            router.push('/dashboard')
+            const { data: newProject } = await supabase
+                .from('inngest_fixer_projects')
+                .select('id')
+                .eq('project_name', projectName)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (newProject) {
+                router.push(`/dashboard/projects/${newProject.id}`)
+            } else {
+                router.push('/dashboard')
+            }
             router.refresh()
         } catch (error: any) {
             toast.error(error.message || 'Failed to create project')
@@ -119,23 +131,22 @@ export default function NewProjectPage() {
 
                 <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-6">
                     <h2 className="text-xl font-semibold mb-4 text-blue-400 flex items-center gap-2">
-                        <span>ℹ️</span> How to Setup Webhooks
+                        <span>ℹ️</span> How to Setup
                     </h2>
-                    <p className="text-slate-300 mb-4">
-                        To enable AI-powered fixes, you need to configure an Inngest failure webhook in your project's settings.
+                    <p className="text-slate-300 mb-4 text-sm leading-relaxed">
+                        To enable AI-powered fixes, you should add a small <strong>Inngest Forwarder</strong> function to your codebase.
+                        This is more reliable than dashboard webhooks.
                     </p>
-                    <ol className="list-decimal list-inside space-y-3 text-slate-300">
-                        <li>Go to your Inngest Cloud dashboard.</li>
-                        <li>Select your app and navigate to <strong>Settings → Webhooks</strong>.</li>
-                        <li>Click <strong>Add Webhook</strong>.</li>
-                        <li>Set the URL to:
-                            <code className="block bg-slate-900 p-2 mt-2 rounded border border-slate-700 text-blue-400">
-                                {typeof window !== 'undefined' ? window.location.origin : ''}/api/webhook/inngest
-                            </code>
-                        </li>
-                        <li>Select the event <code>function.failed</code>.</li>
-                        <li>Save the webhook.</li>
-                    </ol>
+                    <div className="space-y-4">
+                        <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                            <h3 className="text-sm font-bold text-white mb-2">Step 1: Create the project</h3>
+                            <p className="text-xs text-slate-400">Fill out the form above. After clicking "Create Project", we will generate a custom code snippet for you in the project settings.</p>
+                        </div>
+                        <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                            <h3 className="text-sm font-bold text-white mb-2">Step 2: Copy the Forwarder Snippet</h3>
+                            <p className="text-xs text-slate-400">In the next screen, you'll see a section called <strong>"Inngest Forwarder"</strong>. Just copy that code into your Inngest project and deploy.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

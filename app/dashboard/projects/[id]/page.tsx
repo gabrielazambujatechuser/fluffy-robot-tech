@@ -109,6 +109,38 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                         </div>
                     </div>
                 </div>
+
+                <div className="mt-8 bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
+                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        <span>🚀</span> Inngest Forwarder (Recommended)
+                    </h2>
+                    <p className="text-slate-400 mb-6 text-sm">
+                        Add this function to your project's Inngest configuration to automatically forward all failures to the AI analyzer.
+                    </p>
+
+                    <div className="relative group">
+                        <pre className="bg-slate-900 p-4 rounded-lg border border-slate-700 text-blue-300 text-sm font-mono overflow-x-auto">
+                            {`// Add this to your inngest/functions file
+export const inngestFixerForwarder = inngest.createFunction(
+  { id: "inngest-fixer-forwarder", name: "Inngest Fixer Forwarder" },
+  { event: "inngest/function.failed" },
+  async ({ event }) => {
+    await fetch("${webhookUrl}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event),
+    });
+  }
+);`}
+                        </pre>
+                        <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <h3 className="text-blue-400 font-semibold text-sm mb-2">Why use this?</h3>
+                            <p className="text-xs text-slate-300">
+                                Instead of manually setting up webhooks in the Inngest dashboard, this function "catches" any failure in your system and forwards it for analysis. It works for all your functions at once!
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     )
