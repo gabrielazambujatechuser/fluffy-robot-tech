@@ -99,8 +99,13 @@ export async function processFailureEvent(
 
     // 4. Analyze with Claude (Background-ish)
     try {
+        console.log('🤖 [FIXER SERVICE] Starting AI analysis...')
+        console.log('🤖 [FIXER SERVICE] API Key present:', !!process.env.ANTHROPIC_API_KEY)
+        console.log('🤖 [FIXER SERVICE] API Key prefix:', process.env.ANTHROPIC_API_KEY?.substring(0, 15))
+        console.log('🤖 [FIXER SERVICE] Using model: claude-sonnet-4-5-20250929')
+
         const message = await anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
+            model: 'claude-sonnet-4-5-20250929',
             max_tokens: 2000,
             messages: [{
                 role: 'user',
@@ -141,6 +146,8 @@ FIXED_PAYLOAD:
 `
             }]
         })
+
+        console.log('✅ [FIXER SERVICE] AI analysis completed successfully')
 
         const response = message.content[0].type === 'text' ? message.content[0].text : ''
 
