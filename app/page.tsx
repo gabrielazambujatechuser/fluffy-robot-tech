@@ -46,7 +46,7 @@ async function HomeContent() {
             Inngest Fixer
           </h1>
           <p className="text-2xl text-slate-300 mb-8">
-            AI-powered automatic fix for failed Inngest functions
+            AI analyzes your Inngest failures and generates prompts you can paste into your code IDE to fix issues instantly
           </p>
           <GoogleSignInButton />
         </div>
@@ -68,10 +68,10 @@ async function HomeContent() {
             <h2 className="text-2xl font-bold mb-4 text-green-400">🎉 The Solution</h2>
             <ul className="space-y-3 text-slate-300">
               <li>✓ Automatic failure detection</li>
-              <li>✓ AI analyzes error + payload</li>
-              <li>✓ Suggests exact fix in seconds</li>
-              <li>✓ One-click replay with fix</li>
-              <li>✓ 95% success rate on first retry</li>
+              <li>✓ AI analyzes error + payload in seconds</li>
+              <li>✓ Generates detailed fix explanation</li>
+              <li>✓ Provides ready-to-use IDE prompt</li>
+              <li>✓ Paste in your code editor to fix instantly</li>
             </ul>
           </div>
         </div>
@@ -81,10 +81,10 @@ async function HomeContent() {
           <h2 className="text-3xl font-bold mb-8 text-center">How It Works</h2>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { num: 1, title: 'Failure Occurs', desc: 'Inngest function fails, webhook triggers' },
-              { num: 2, title: 'AI Analyzes', desc: 'Claude reads error, payload, and code' },
-              { num: 3, title: 'Fix Generated', desc: 'AI suggests corrected payload' },
-              { num: 4, title: 'Replay', desc: 'One-click to retry with fix' },
+              { num: 1, title: 'Failure Detected', desc: 'Inngest function fails, webhook triggers automatically' },
+              { num: 2, title: 'AI Analyzes', desc: 'Claude reads error, payload, and identifies the issue' },
+              { num: 3, title: 'Fix Generated', desc: 'AI creates detailed analysis and corrected payload' },
+              { num: 4, title: 'Copy & Paste', desc: 'Use the AI prompt in your code IDE to fix instantly' },
             ].map((step) => (
               <div key={step.num} className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">

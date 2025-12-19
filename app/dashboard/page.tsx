@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation'
 export const dynamic = 'force-dynamic'
 import { UserInfo } from '@/components/user-info'
 import { AuthToast } from '@/components/auth-toast'
-import { TestWebhookButton } from '@/components/test-webhook-button'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
@@ -17,7 +16,12 @@ export default async function DashboardPage() {
                 <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                     <h1 className="text-xl font-bold">🔧 Inngest Fixer</h1>
                     <div className="flex items-center gap-4">
-                        <TestWebhookButton />
+                        <Link
+                            href="/dashboard/test"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors"
+                        >
+                            Test Events
+                        </Link>
                         <UserInfo />
                     </div>
                 </div>

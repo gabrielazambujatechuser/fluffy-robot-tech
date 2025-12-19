@@ -118,25 +118,6 @@ export default async function FailureDetailPage({ params }: { params: Promise<{ 
                             </div>
                         </section>
 
-                        <section className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
-                            <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Actions</h3>
-                            <div className="grid grid-cols-1 gap-3">
-                                <button
-                                    disabled
-                                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold py-3 rounded-lg transition-all"
-                                >
-                                    Replay with Fix 🔁
-                                </button>
-                                <button
-                                    className="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold py-3 rounded-lg transition-all"
-                                >
-                                    Copy Fixed JSON
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-slate-500 mt-4 text-center">
-                                * Replay with fix is coming soon
-                            </p>
-                        </section>
                     </div>
                 </div>
             </div>
