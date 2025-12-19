@@ -92,7 +92,7 @@ export default function NewProjectPage() {
                                 type="password"
                                 value={inngestEventKey}
                                 onChange={(e) => setInngestEventKey(e.target.value)}
-                                placeholder="sign-key-..."
+                                placeholder="key-..."
                                 required
                                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-600 font-mono text-sm"
                             />
@@ -134,17 +134,17 @@ export default function NewProjectPage() {
                         <span>ℹ️</span> How to Setup
                     </h2>
                     <p className="text-slate-300 mb-4 text-sm leading-relaxed">
-                        To enable AI-powered fixes, you should add a small <strong>Inngest Forwarder</strong> function to your codebase.
-                        This is more reliable than dashboard webhooks.
+                        The easiest way to setup is to connect our app directly to your Inngest Cloud.
+                        <strong> Zero code changes required.</strong>
                     </p>
                     <div className="space-y-4">
                         <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                             <h3 className="text-sm font-bold text-white mb-2">Step 1: Create the project</h3>
-                            <p className="text-xs text-slate-400">Fill out the form above. After clicking "Create Project", we will generate a custom code snippet for you in the project settings.</p>
+                            <p className="text-xs text-slate-400">Fill out the form above. We need your Inngest Keys to analyze your failures later.</p>
                         </div>
                         <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                            <h3 className="text-sm font-bold text-white mb-2">Step 2: Copy the Forwarder Snippet</h3>
-                            <p className="text-xs text-slate-400">In the next screen, you'll see a section called <strong>"Inngest Forwarder"</strong>. Just copy that code into your Inngest project and deploy.</p>
+                            <h3 className="text-sm font-bold text-white mb-2">Step 2: Connect App URL</h3>
+                            <p className="text-xs text-slate-400">In the next screen, you'll get a <strong>Connection URL</strong>. Paste it into <strong>Inngest Cloud → Apps → Connect New App</strong> and you're done!</p>
                         </div>
                     </div>
                 </div>

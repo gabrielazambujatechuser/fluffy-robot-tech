@@ -1,5 +1,6 @@
 import { inngest } from '@/inngest.config'
 import { serve } from 'inngest/next'
+import { processFailureEvent } from '@/lib/services/fixer'
 
 // Test function that will fail on purpose
 const testFailingFunction = inngest.createFunction(
@@ -90,12 +91,35 @@ const testPaymentFunction = inngest.createFunction(
     }
 )
 
+// Native failure handler that processes system events from any connected Inngest environment
+const inngestFixerHandler = inngest.createFunction(
+    { id: 'inngest-fixer-handler', name: 'Inngest Fixer Handler' },
+    { event: 'inngest/function.failed' },
+    async ({ event, step, projectId }: any) => {
+        // Use projectId from middleware context
+        const targetProjectId = projectId || 'all'
+
+        await step.run('process-failure', async () => {
+            return await processFailureEvent(
+                targetProjectId,
+                {
+                    function_id: event.data.function_id,
+                    run_id: event.data.run_id,
+                    event: event.data.event,
+                    error: event.data.error
+                }
+            )
+        })
+    }
+)
+
 // Export the Inngest API route
 export const { GET, POST, PUT } = serve({
     client: inngest,
     functions: [
         testFailingFunction,
         testPaymentFunction,
+        inngestFixerHandler,
     ],
     signingKey: process.env.INNGEST_SIGNING_KEY,
 })

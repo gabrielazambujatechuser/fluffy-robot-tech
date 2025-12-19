@@ -25,7 +25,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         notFound()
     }
 
-    const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fluffy-robot-tech.vercel.app'}/api/webhook/inngest?project_id=${project.id}`
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fluffy-robot-tech.vercel.app'
+    const webhookUrl = `${siteUrl}/api/webhook/inngest?project_id=${project.id}`
+    const inngestAppUrl = `${siteUrl}/api/inngest?project_id=${project.id}`
 
     return (
         <div className="min-h-screen bg-slate-900 text-white p-8">
@@ -50,7 +52,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                             <span>🛰️</span> Webhook Configuration
                         </h2>
                         <p className="text-slate-400 mb-6 text-sm">
-                            Use this unique URL in your Inngest project settings to enable AI-powered fixes.
+                            Traditional webhook setup for simple integrations.
                         </p>
 
                         <div className="space-y-4">
@@ -66,7 +68,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                                 <ul className="text-xs text-slate-300 space-y-2 list-disc list-inside">
                                     <li>Add this URL in <strong>Inngest Cloud → Settings → Webhooks</strong>.</li>
                                     <li>Enable the <code>function.failed</code> event.</li>
-                                    <li>Ensure your <strong>Signing Key</strong> is added to this project.</li>
                                 </ul>
                             </div>
                         </div>
@@ -112,32 +113,34 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
                 <div className="mt-8 bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
                     <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                        <span>🚀</span> Inngest Forwarder (Recommended)
+                        <span>🔌</span> Connect as Inngest App (Zero Code)
                     </h2>
                     <p className="text-slate-400 mb-6 text-sm">
-                        Add this function to your project's Inngest configuration to automatically forward all failures to the AI analyzer.
+                        The easiest way to setup: Connect our app directly in your Inngest Cloud dashboard.
+                        No code changes required!
                     </p>
 
-                    <div className="relative group">
-                        <pre className="bg-slate-900 p-4 rounded-lg border border-slate-700 text-blue-300 text-sm font-mono overflow-x-auto">
-                            {`// Add this to your inngest/functions file
-export const inngestFixerForwarder = inngest.createFunction(
-  { id: "inngest-fixer-forwarder", name: "Inngest Fixer Forwarder" },
-  { event: "inngest/function.failed" },
-  async ({ event }) => {
-    await fetch("${webhookUrl}", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(event),
-    });
-  }
-);`}
-                        </pre>
-                        <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                            <h3 className="text-blue-400 font-semibold text-sm mb-2">Why use this?</h3>
-                            <p className="text-xs text-slate-300">
-                                Instead of manually setting up webhooks in the Inngest dashboard, this function "catches" any failure in your system and forwards it for analysis. It works for all your functions at once!
-                            </p>
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Inngest App URL</label>
+                            <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 flex justify-between items-center group">
+                                <code className="text-blue-400 text-sm break-all">{inngestAppUrl}</code>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                <h3 className="text-blue-400 font-semibold text-sm mb-2">Step 1: Connect App</h3>
+                                <p className="text-xs text-slate-300 text-pretty">
+                                    In your <strong>Inngest Cloud Dashboard</strong>, go to <strong>Apps → Connect New App</strong> and paste the URL above.
+                                </p>
+                            </div>
+                            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                <h3 className="text-blue-400 font-semibold text-sm mb-2">Step 2: That's it!</h3>
+                                <p className="text-xs text-slate-300 text-pretty">
+                                    Our app will automatically listen for failures across your entire environment. No forwarder code needed!
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
