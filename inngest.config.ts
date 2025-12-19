@@ -11,8 +11,18 @@ export const inngest = new Inngest({
                 onFunctionRun: (data: any) => {
                     // Try to extract project_id from common request properties
                     const req = data.req || data.reqArgs?.[0];
-                    const url = new URL(req?.url || '');
-                    const projectId = url.searchParams.get('project_id');
+                    let projectId: string | null = null;
+
+                    if (req?.url) {
+                        try {
+                            // Use a dummy base for relative URLs (common in internal requests)
+                            const url = new URL(req.url, 'http://localhost');
+                            projectId = url.searchParams.get('project_id');
+                        } catch (e) {
+                            // Ignore URL parsing errors
+                        }
+                    }
+
                     return {
                         transformInput: () => ({
                             ctx: { projectId },
