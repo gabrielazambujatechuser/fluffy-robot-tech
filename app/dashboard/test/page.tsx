@@ -32,6 +32,11 @@ export default function TestPage() {
                 return
             }
 
+            if (!isLocal && !project.inngest_event_key) {
+                alert('Inngest Event Key is missing for this project. Please add it in project settings.')
+                return
+            }
+
             // Build event payload based on type
             let eventPayload
             if (eventType === 'user') {

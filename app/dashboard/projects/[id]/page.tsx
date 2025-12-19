@@ -78,6 +78,20 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                             Signing Key status and security settings.
                         </p>
 
+                        <div className="p-4 rounded-lg bg-slate-900 border border-slate-700 mb-4">
+                            {project.inngest_event_key ? (
+                                <div className="flex items-center gap-3 text-green-400">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="text-sm font-medium">Event Key Configured</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-3 text-red-400">
+                                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                                    <span className="text-sm font-medium">Event Key Missing</span>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="p-4 rounded-lg bg-slate-900 border border-slate-700">
                             {project.signing_key ? (
                                 <div className="flex items-center gap-3 text-green-400">

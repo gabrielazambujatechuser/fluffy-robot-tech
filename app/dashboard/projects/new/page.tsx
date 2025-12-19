@@ -10,6 +10,7 @@ import Link from 'next/link'
 
 export default function NewProjectPage() {
     const [projectName, setProjectName] = useState('')
+    const [inngestEventKey, setInngestEventKey] = useState('')
     const [signingKey, setSigningKey] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
@@ -27,6 +28,7 @@ export default function NewProjectPage() {
                 .from('inngest_fixer_projects')
                 .insert({
                     project_name: projectName,
+                    inngest_event_key: inngestEventKey,
                     signing_key: signingKey,
                     user_id: user.id
                 })
@@ -67,6 +69,24 @@ export default function NewProjectPage() {
                                 required
                                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-600"
                             />
+                        </div>
+
+                        <div>
+                            <label htmlFor="inngestEventKey" className="block text-sm font-medium mb-2">
+                                Inngest Event Key
+                            </label>
+                            <input
+                                id="inngestEventKey"
+                                type="password"
+                                value={inngestEventKey}
+                                onChange={(e) => setInngestEventKey(e.target.value)}
+                                placeholder="sign-key-..."
+                                required
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-600 font-mono text-sm"
+                            />
+                            <p className="mt-2 text-xs text-slate-500">
+                                Found in <strong>Inngest Cloud → Settings → API Keys</strong>.
+                            </p>
                         </div>
 
                         <div>
