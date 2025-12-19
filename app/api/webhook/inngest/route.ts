@@ -136,7 +136,7 @@ export async function POST(req: Request) {
 
             if (!project) {
                 console.error(`❌ [WEBHOOK] No project found for ID: ${projectId || 'any'}`)
-                return NextResponse.json({ error: 'No project configured' }, { status: 404 })
+                continue
             }
 
             console.log(`✅ [PROJECT] Found project: ${project.project_name} (${project.id})`)
@@ -167,24 +167,48 @@ export async function POST(req: Request) {
 
                     if (signature !== expectedSignature && signature !== expectedSignatureWithDot) {
                         console.error('❌ [WEBHOOK] Invalid signature. Checked with and without dot.')
-                        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+                        continue
                     }
                     console.log('✅ [WEBHOOK] Signature verified')
                 } catch (err: any) {
                     console.error('❌ [WEBHOOK] Signature verification failed:', err.message)
-                    return NextResponse.json({ error: 'Signature verification failed' }, { status: 401 })
+                    continue
                 }
             }
 
-            // Analyze with Claude
-            console.log('🤖 [CLAUDE] Sending to Claude for analysis...')
+            // 1. Initial save to DB (Pending state)
+            const { data: failureEvent, error: dbError } = await supabase
+                .from('inngest_fixer_failure_events')
+                .insert({
+                    project_id: project.id,
+                    user_id: project.user_id,
+                    event_id: eventId,
+                    function_id,
+                    run_id,
+                    error_message: error.message,
+                    original_payload: originalEvent,
+                    status: 'pending',
+                })
+                .select()
+                .single()
 
-            const message = await anthropic.messages.create({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 2000,
-                messages: [{
-                    role: 'user',
-                    content: `You are debugging an Inngest function failure. 
+            if (dbError) {
+                console.error('❌ [DATABASE] Failed to save pending failure:', dbError)
+                continue
+            }
+
+            console.log('✅ [DATABASE] Saved pending failure:', failureEvent.id)
+
+            // 2. Analyze with Claude
+            try {
+                console.log('🤖 [CLAUDE] Sending to Claude for analysis...')
+
+                const message = await anthropic.messages.create({
+                    model: 'claude-3-5-sonnet-latest',
+                    max_tokens: 2000,
+                    messages: [{
+                        role: 'user',
+                        content: `You are debugging an Inngest function failure. 
 
 Function ID: ${function_id}
 Event Name: ${originalEvent.name}
@@ -219,56 +243,59 @@ FIXED_PAYLOAD:
 }
 \`\`\`
 `
-                }]
-            })
-
-            const response = message.content[0].type === 'text' ? message.content[0].text : ''
-            console.log('✅ [CLAUDE] Analysis complete')
-
-            // Parse Claude's response
-            const analysisMatch = /ANALYSIS: (.+?)(?=ROOT_CAUSE:)/s.exec(response)
-            const causeMatch = /ROOT_CAUSE: (.+?)(?=CONFIDENCE:)/s.exec(response)
-            const confidenceMatch = /CONFIDENCE: (low|medium|high)/i.exec(response)
-            const fixedPayloadMatch = /FIXED_PAYLOAD:\s*```json\s*(.+?)\s*```/s.exec(response)
-
-            let fixedPayload = null
-            if (fixedPayloadMatch) {
-                try {
-                    fixedPayload = JSON.parse(fixedPayloadMatch[1])
-                } catch (e) {
-                    console.error('Failed to parse fixed payload:', e)
-                }
-            }
-
-            const analysis = analysisMatch?.[1]?.trim() || 'Analysis failed'
-            const rootCause = causeMatch?.[1]?.trim() || 'Unknown'
-            const confidence = confidenceMatch?.[1]?.toLowerCase() as 'low' | 'medium' | 'high' || 'low'
-
-            // Save to database
-            const { data: failureEvent, error: dbError } = await supabase
-                .from('inngest_fixer_failure_events')
-                .insert({
-                    project_id: project.id,
-                    user_id: project.user_id,
-                    event_id: eventId,
-                    function_id,
-                    run_id,
-                    error_message: error.message,
-                    original_payload: originalEvent,
-                    fixed_payload: fixedPayload,
-                    ai_analysis: `${analysis}\n\nRoot Cause: ${rootCause}`,
-                    fix_confidence: confidence,
-                    status: fixedPayload ? 'fixed' : 'failed',
+                    }]
                 })
-                .select()
-                .single()
 
-            if (dbError) {
-                console.error('❌ [DATABASE] Failed to save:', dbError)
-                return NextResponse.json({ error: 'Database error' }, { status: 500 })
+                const response = message.content[0].type === 'text' ? message.content[0].text : ''
+                console.log('✅ [CLAUDE] Analysis complete')
+
+                // Parse Claude's response
+                const analysisMatch = /ANALYSIS: (.+?)(?=ROOT_CAUSE:)/s.exec(response)
+                const causeMatch = /ROOT_CAUSE: (.+?)(?=CONFIDENCE:)/s.exec(response)
+                const confidenceMatch = /CONFIDENCE: (low|medium|high)/i.exec(response)
+                const fixedPayloadMatch = /FIXED_PAYLOAD:\s*```json\s*(.+?)\s*```/s.exec(response)
+
+                let fixedPayload = null
+                if (fixedPayloadMatch) {
+                    try {
+                        fixedPayload = JSON.parse(fixedPayloadMatch[1])
+                    } catch (e) {
+                        console.error('Failed to parse fixed payload:', e)
+                    }
+                }
+
+                const analysis = analysisMatch?.[1]?.trim() || 'Analysis failed'
+                const rootCause = causeMatch?.[1]?.trim() || 'Unknown'
+                const confidence = confidenceMatch?.[1]?.toLowerCase() as 'low' | 'medium' | 'high' || 'low'
+
+                // 3. Update DB with analysis
+                const { error: updateError } = await supabase
+                    .from('inngest_fixer_failure_events')
+                    .update({
+                        fixed_payload: fixedPayload,
+                        ai_analysis: `${analysis}\n\nRoot Cause: ${rootCause}`,
+                        fix_confidence: confidence,
+                        status: fixedPayload ? 'fixed' : 'failed',
+                    })
+                    .eq('id', failureEvent.id)
+
+                if (updateError) {
+                    console.error('❌ [DATABASE] Failed to update analysis:', updateError)
+                } else {
+                    console.log('✅ [WEBHOOK] Failure analyzed and updated:', failureEvent.id)
+                }
+
+            } catch (claudeError: any) {
+                console.error('❌ [CLAUDE] Analysis failed:', claudeError.message)
+                // Update record to mark as failed analysis
+                await supabase
+                    .from('inngest_fixer_failure_events')
+                    .update({
+                        ai_analysis: `AI Analysis failed: ${claudeError.message}`,
+                        status: 'failed'
+                    })
+                    .eq('id', failureEvent.id)
             }
-
-            console.log('✅ [WEBHOOK] Failure analyzed and saved:', failureEvent.id)
         } // End of loop over events
 
         return NextResponse.json({
